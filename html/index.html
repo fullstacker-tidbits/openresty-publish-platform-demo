@@ -6,6 +6,39 @@
 
     <body>
         <h1>List of Proxy Endpoints</h1>
-        <ul></ul>
+        <ul id="endpoint-list"></ul>
     </body>
+
+    <template id="tpl-endpoint-list-item">
+        <li>
+            <span  class="endpoint-list-item-eid"></span>
+            <input class="endpoint-list-item-endpoint" type="text" placeholder="endpoint" name="endpoint"></input>
+            <input class="endpoint-list-item-ip" type="text" placeholder="ip" name="ip"></input>
+            <input class="endpoint-list-item-hostname" type="text" placeholder="hostname" name="hostname"></input>
+            <input class="endpoint-list-item-resource" type="text" placeholder="resource" name="resource"></input>
+            <button class="endpoint-list-item-update">Update</button>
+            <button class="endpoint-list-item-delete">Delete</button>
+        </li>
+    </template>
+
+    <script>
+    function fillEndpoint(itemTpl, endpoint) {
+        itemTpl.content.querySelectorAll('li > input').forEach((e) => {
+            e.value = endpoint[e.placeholder];
+        });
+        itemTpl.content.querySelector('.endpoint-list-item-eid').textContent = endpoint.eid;
+        return itemTpl;
+    };
+
+    fetch('/endpoints/')
+        .then((resp) => resp.json())
+        .then((endpoints) => {
+            const itemTpl = document.querySelector('#tpl-endpoint-list-item');
+            const itemList = document.querySelector('#endpoint-list');
+            endpoints.forEach((endpoint) => {
+                const filledTpl = fillEndpoint(itemTpl, endpoint);
+                itemList.appendChild(document.importNode(filledTpl.content, true));
+            });
+        });
+    </script>
 </html>

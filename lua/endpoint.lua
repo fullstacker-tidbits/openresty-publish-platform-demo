@@ -1,73 +1,79 @@
-local cjson = require "cjson"
-local db = require "db"
+local cjson = require("cjson")
+local dbrun = require("db"):set_conf(nil)
 local quote = ngx.quote_sql_str
 
 
+-- a dirty utility function to backtick quote a column name
+local function btquote(val)
+    local sqquoted = quote(val)
+    return "`" .. sqquoted:sub(2, -2) .. "`"
+end
+
+
 -- endpoint data
-local function get_all_endpoints()
-    return db:sql(nil, "SELECT * FROM endpoint")
+local data = {}
+
+function data.get_all()
+    return dbrun("SELECT * FROM endpoint")
 end
 
-
-local function filter_endpoint(eid)
-    return db:sql(nil, "SELECT * FROM endpoint WHERE eid = " .. eid)
+function data.filter(eid)
+    return dbrun("SELECT * FROM endpoint WHERE eid = " .. eid)
 end
 
-
-local function update_endpoint(eid, fields)
-    local sql = 'UPDATE TABLE endpoint SET '
+function data.update(eid, fields)
+    local sql = "UPDATE endpoint SET "
     local field_sets = {}
-    fields.eid = nil  -- disallow updating eid from request
     for k, v in pairs(fields) do
-        table.insert(field_sets, quote(k) .. '=' .. quote(v))
+        table.insert(field_sets, btquote(k) .. "=" .. quote(v))
     end
-    sql = sql .. table.concat(field_sets, ',') .. ' WHERE eid = ' .. quote(eid)
-    return db:sql(nil, sql)
+    sql = sql .. table.concat(field_sets, ",") .. " WHERE eid = " .. quote(eid)
+    return dbrun(sql)
 end
 
 
-local function create_endpoint(fields)
-    local sql = 'INSERT INTO endpoint '
+function data.create(fields)
+    local sql = "INSERT INTO endpoint "
     local keys, vals = {}, {}
-    fields.eid = nil  -- eid should be auto increment
     for k, v in pairs(fields) do
-        table.insert(keys, quote(k))
+        table.insert(keys, btquote(k))
         table.insert(vals, quote(v))
     end
-    sql = sql .. '(' .. table.concat(k, ',') .. ') VALUE (' .. table.concat(v, ',') .. ')'
-    return db:sql(nil, sql)
+    sql = sql .. "(" .. table.concat(keys, ",") .. ") VALUES (" .. table.concat(vals, ",") .. ")"
+    return dbrun(sql)
 end
 
 
 -- endpoint api
-local endpoint = {}
+local api = {}
 
-
-function endpoint.get()
+function api.get()
     local eid, res = tonumber(ngx.var.eid), nil
     if eid then res = filter_endpoint(eid)
-    else res = get_all_endpoints() end
+    else res = data.get_all() end
     return cjson.encode(res)
 end
 
-
-function endpoint.post()
+function api.post()
     ngx.req.read_body()
     local eid = tonumber(ngx.var.eid)
-    if eid then update_endpoint(eid, ngx.req.get_post_args())
-    else create_endpoint(ngx.req.get_post_args()) end
+    local fields = cjson.decode(ngx.req.get_body_data())
+    fields.eid = nil  -- eid must be auto increment, and no direct update
+    if eid then data.update(eid, fields)
+    else data.create(fields) end
+end
+
+function api.head()
+    return '{"msg": "you don\'t care what\'s returned, do ya?"}'
 end
 
 
-function endpoint.head()
-    return '{"msg": "you don\'t care what\'t returned, do ya?"}'
-end
-
+-----
 
 return {
-    api = function()
+    handle = function()
         local method_name = ngx.req.get_method():lower()
-        local method = endpoint[method_name]
+        local method = api[method_name]
         if not method then ngx.exit(ngx.HTTP_NOT_ALLOWED) end
         return ngx.say(method())
     end

@@ -1,8 +1,8 @@
-local mysql = require "resty.mysql"
+local mysql = require("resty.mysql")
 
 
 local DEFAULT_DBCONF = {
-    host = "mysql",
+    host = os.getenv("MYSQL_PORT_3306_TCP_ADDR"),
     port = 3306,
     user = "root",
     password = "app",
@@ -32,13 +32,13 @@ local M = {
 @return return_code: -1: ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE); 0: no result; 1: success
 ]]
 function M:sql(dbconf, sql)
-    local dbconf = dbconf or DEFAULT_DBCONF
 	local db, ok, res, err, errcode, sqlstate
 	db, err = mysql:new()
 	db:set_timeout(5000)
 	ok, err, errcode, sqlstate = db:connect(dbconf)
 	if not ok then
-		local msg = table.concat({"Failed to connect " .. dbconf.pool, errcode or "-", sql}, "|")
+		local msg = table.concat({"Failed to connect " .. dbconf.pool, errcode or "-", err or "-", sql}, "|")
+		ngx.log(ngx.ERR, msg)
 		return {}, self.CONNECTION_ERROR
 	end
 
@@ -50,6 +50,14 @@ function M:sql(dbconf, sql)
     else
         ok, err = db:set_keepalive(10000, 10)  -- pool the connection
         return res, self.SUCCESS
+    end
+end
+
+
+function M:set_conf(dbconf)
+    local dbconf = dbconf or DEFAULT_DBCONF
+    return function(sql)
+        return self:sql(dbconf, sql)
     end
 end
 
