@@ -7,6 +7,16 @@
     <body>
         <h1>List of Proxy Endpoints</h1>
         <ul id="endpoint-list"></ul>
+        <ul>
+            <li>
+                <span> - </span>
+                <input class="endpoint-list-item-endpoint" type="text" placeholder="endpoint" name="endpoint"></input>
+                <input class="endpoint-list-item-ip" type="text" placeholder="ip" name="ip"></input>
+                <input class="endpoint-list-item-hostname" type="text" placeholder="hostname" name="hostname"></input>
+                <input class="endpoint-list-item-resource" type="text" placeholder="resource" name="resource"></input>
+                <button class="endpoint-list-item-create">Create</button>
+            </li>
+        </ul>
     </body>
 
     <template id="tpl-endpoint-list-item">
@@ -22,6 +32,26 @@
     </template>
 
     <script>
+    const itemTpl = document.querySelector('#tpl-endpoint-list-item');
+    const itemList = document.querySelector('#endpoint-list');
+
+    const getUpdateBtns = () => document.querySelectorAll('.endpoint-list-item-update');
+    const getDeleteBtns = () => document.querySelectorAll('.endpoint-list-item-delete');
+
+    function getValByAttr(e, attr) {
+        const inner = e.querySelector(`.endpoint-list-item-${attr}`);
+        return inner.textContent || inner.value;
+    };
+
+    function genEndpoint(e) {
+        return JSON.stringify({
+            endpoint: getValByAttr(e, 'endpoint'),
+            ip: getValByAttr(e, 'ip'),
+            hostname: getValByAttr(e, 'hostname'),
+            resource: getValByAttr(e, 'resource'),
+        });
+    };
+
     function fillEndpoint(itemTpl, endpoint) {
         itemTpl.content.querySelectorAll('li > input').forEach((e) => {
             e.value = endpoint[e.placeholder];
@@ -30,15 +60,84 @@
         return itemTpl;
     };
 
-    fetch('/endpoints/')
-        .then((resp) => resp.json())
-        .then((endpoints) => {
-            const itemTpl = document.querySelector('#tpl-endpoint-list-item');
-            const itemList = document.querySelector('#endpoint-list');
-            endpoints.forEach((endpoint) => {
-                const filledTpl = fillEndpoint(itemTpl, endpoint);
-                itemList.appendChild(document.importNode(filledTpl.content, true));
-            });
+    function refreshList(endpoints) {
+        removeUpdateListener();
+        itemList.textContent = '';
+        endpoints.forEach((endpoint) => {
+            const filledTpl = fillEndpoint(itemTpl, endpoint);
+            itemList.appendChild(document.importNode(filledTpl.content, true));
         });
+        bindUpdateListener();
+    };
+
+    function init() {
+        document.querySelectorAll('li > input').forEach((e) => {
+            e.value = '';
+        });
+        fetch('/endpoints/').then((resp) => resp.json()).then(refreshList);
+    };
+
+    function upd() {
+        const parent = this.parentElement;
+        const eid = parseInt(getValByAttr(parent, 'eid'));
+        fetch(`/endpoints/${eid}`, {
+            method: 'post',
+            body: genEndpoint(parent),
+        }).then(() => {
+            alert('Endpoint Updated!');
+            init();
+        });
+    };
+
+    function del() {
+        const parent = this.parentElement;
+        const eid = parseInt(getValByAttr(parent, 'eid'));
+        fetch(`/endpoints/${eid}`, {
+            method: 'delete',
+        }).then(() => {
+            alert('Endpoint Deleted!');
+            init();
+        });
+    };
+
+    function add() {
+        const parent = this.parentElement;
+        fetch('/endpoints/', {
+            method: 'post',
+            body: genEndpoint(parent),
+        }).then(() => {
+            alert('Endpoint Created!');
+            init();
+        });
+    };
+
+    function bindUpdateListener() {
+        getUpdateBtns().forEach((e) => {
+            e.addEventListener('click', upd);
+        });
+    };
+
+    function removeUpdateListener() {
+        getUpdateBtns().forEach((e) => {
+            e.removeEventListener('click', upd);
+        });
+    };
+
+    function bindDeleteListener() {
+        updateBtns.forEach((e) => {
+            e.addEventListener('click', del);
+        });
+    };
+
+    function removeDeleteListener() {
+        updateBtns.forEach((e) => {
+            e.removeEventListener('click', del);
+        });
+    };
+
+    document.querySelector('.endpoint-list-item-create')
+            .addEventListener('click', add);
+
+    init();
     </script>
 </html>

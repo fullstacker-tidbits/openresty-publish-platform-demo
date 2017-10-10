@@ -13,13 +13,16 @@ end
 -- endpoint data
 local data = {}
 
+
 function data.get_all()
     return dbrun("SELECT * FROM endpoint")
 end
 
+
 function data.filter(eid)
     return dbrun("SELECT * FROM endpoint WHERE eid = " .. eid)
 end
+
 
 function data.update(eid, fields)
     local sql = "UPDATE endpoint SET "
@@ -44,15 +47,22 @@ function data.create(fields)
 end
 
 
+function data.delete(eid)
+    return dbrun("DELETE FROM endpoint WHERE eid = " .. eid)
+end
+
+
 -- endpoint api
 local api = {}
 
+
 function api.get()
     local eid, res = tonumber(ngx.var.eid), nil
-    if eid then res = filter_endpoint(eid)
+    if eid then res = data.filter(eid)
     else res = data.get_all() end
     return cjson.encode(res)
 end
+
 
 function api.post()
     ngx.req.read_body()
@@ -63,13 +73,19 @@ function api.post()
     else data.create(fields) end
 end
 
+
+function api.delete()
+    local eid, res = tonumber(ngx.var.eid), nil
+    if eid then dbrun(data.delete(eid)) end
+end
+
+
 function api.head()
     return '{"msg": "you don\'t care what\'s returned, do ya?"}'
 end
 
 
 -----
-
 return {
     handle = function()
         local method_name = ngx.req.get_method():lower()
