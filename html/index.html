@@ -68,6 +68,7 @@
             itemList.appendChild(document.importNode(filledTpl.content, true));
         });
         bindUpdateListener();
+        bindDeleteListener();
     };
 
     function init() {
@@ -124,13 +125,13 @@
     };
 
     function bindDeleteListener() {
-        updateBtns.forEach((e) => {
+        getDeleteBtns().forEach((e) => {
             e.addEventListener('click', del);
         });
     };
 
     function removeDeleteListener() {
-        updateBtns.forEach((e) => {
+        getDeleteBtns().forEach((e) => {
             e.removeEventListener('click', del);
         });
     };
